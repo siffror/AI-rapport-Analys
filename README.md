@@ -13,7 +13,7 @@ This Streamlit application uses **GPT-4o** from OpenAI to analyze financial repo
 
 ## 🌐 Live App
 
-👉 [Launch the app](https://ai-rapport-analys.streamlit.app)
+👉 [Launch the app](https://ai-rapport-analys-ds24.streamlit.app/)
 
 ## ⚙️ Technologies
 
