@@ -1,0 +1,11 @@
+# Ignorera miljöfil (API-nyckel)
+.env
+
+# Ignorera lokalt sparade embeddings
+embeddings/
+*.pkl
+
+# Ignorera Python-cachefiler
+__pycache__/
+*.pyc
+*.pyo
