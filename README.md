@@ -36,8 +36,9 @@ Add your key securely via Streamlit Cloud:
 
 ```toml
 OPENAI_API_KEY = "..."
+```
+[More Info](https://docs.streamlit.io/streamlit-community-cloud/get-started/deploy-an-app/connect-to-data-sources/secrets-management)
 
-More Info: https://docs.streamlit.io/streamlit-community-cloud/get-started/deploy-an-app/connect-to-data-sources/secrets-management
 
 📦 ai-report-analyzer/
 ├── app.py
