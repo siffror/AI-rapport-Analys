@@ -220,17 +220,25 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
             answer = generate_gpt_answer(user_question, context)
 
             st.success("✅ Svar klart!")
-            st.markdown(f"### 🤖 GPT-4o svar:\n{answer}")
+            st.markdown("### 🤖 GPT-4o svar:")
+            st.info(answer)
 
-            key_figures = [row for row in answer.split("\n") if is_key_figure(row)]
-            if key_figures:
+            # Filtrera nyckeltal och undvik dubbletter
+            key_figures = list(set(
+                row.strip() for row in answer.split("\n")
+                if is_key_figure(row) and len(row.strip()) > 10
+            ))
+
+            if "ingen specifik information om föreslagen utdelning" in answer.lower():
+                st.warning("⚠️ GPT hittade ingen specifik information om föreslagen utdelning. Du kan behöva kontrollera årsrapportens senare delar eller separata utdelningsbesked.")
+            elif key_figures:
                 st.markdown("### 📊 Möjliga nyckeltal i svaret:")
                 for row in key_figures:
                     st.markdown(f"- {row}")
 
             with st.expander("📚 Visa GPT-kontext"):
-                for i, chunk in enumerate(top_chunks, 1):
-                    st.markdown(f"**Chunk {i}:**\n{chunk[1]}")
+                for i, chunk in enumerate(top_chunks[:3], 1):  # Max 3 chunks
+                    st.markdown(f"**Chunk {i}:**\n{chunk[1][:1000]}...")
 
             st.download_button("💾 Ladda ner svar (.txt)", answer, file_name="gpt_svar.txt")
 
@@ -242,3 +250,4 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
             st.download_button("📄 Ladda ner svar (.pdf)", pdf.output(dest="S").encode("latin1"), file_name="gpt_svar.pdf")
 else:
     st.info("📝 Ange text, länk eller ladda upp en fil eller bild för att börja.")
+
