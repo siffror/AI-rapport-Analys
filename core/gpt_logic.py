@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
 
 load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_embedding(text: str):
     try:
