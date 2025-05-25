@@ -38,6 +38,7 @@ load_dotenv()
 def extract_text_from_file(file):
     import fitz  # PyMuPDF
     from bs4 import BeautifulSoup
+    import pandas as pd  # 👈 behövs för Excel
 
     if file.name.endswith(".pdf"):
         doc = fitz.open(stream=file.read(), filetype="pdf")
@@ -49,7 +50,12 @@ def extract_text_from_file(file):
             tag.decompose()
         return soup.get_text(separator="\n")
 
+    elif file.name.endswith((".xlsx", ".xls")):
+        df = pd.read_excel(file)
+        return df.to_string(index=False)  # 👈 konvertera DataFrame till text
+
     return ""
+
 
 @st.cache_data(show_spinner=False)
 def fetch_html_text(url):
