@@ -159,6 +159,9 @@ if uploaded_file:
 "
             f"{ocr_text}"
         )
+        answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
+        st.markdown("### 🤖 GPT-4o svar:")
+        st.write(answer)
             )
             answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
             st.markdown("### 🤖 GPT-4o svar:")
