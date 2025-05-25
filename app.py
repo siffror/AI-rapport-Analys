@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
 import openai
 openai.api_key = os.getenv("OPENAI_API_KEY")
+import pandas as pd
 
 import hashlib
 import pickle
@@ -106,7 +107,7 @@ st.markdown("<h1 style='color:#3EA6FF;'>📊 AI-baserad Rapportanalys</h1>", uns
 st.image("https://www.appypie.com/dharam_design/wp-content/uploads/2025/05/headd.svg", width=120)
 
 html_link = st.text_input("🌐 Rapport-länk (HTML)")
-uploaded_file = st.file_uploader("📎 Eller ladda upp HTML- eller PDF-fil", type=["html", "pdf"])
+uploaded_file = st.file_uploader("📎 Ladda upp HTML, PDF eller Excel-fil", type=["html", "pdf", "xlsx", "xls"])
 
 preview = None
 
