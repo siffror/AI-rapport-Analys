@@ -4,7 +4,6 @@ import hashlib
 import requests
 import re
 from bs4 import BeautifulSoup
-import fitz  # PyMuPDF
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
@@ -14,10 +13,9 @@ from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
 import pdfplumber
 
-# 🌍 Ladda API-nycklar
 load_dotenv()
 
-# 🔐 Caching och sparning av embeddings
+# --- Embedding-cachefunktioner ---
 def get_embedding_cache_name(source_id: str) -> str:
     hashed = hashlib.md5(source_id.encode("utf-8")).hexdigest()
     return os.path.join("embeddings", f"embeddings_{hashed}.pkl")
@@ -33,10 +31,9 @@ def load_embeddings_if_exists(filename):
             return pickle.load(f)
     return None
 
-# 📄 Extrahera text från olika filtyper
+# --- Textutvinning från fil ---
 def extract_text_from_file(file):
     text_output = ""
-
     if file.name.endswith(".pdf"):
         file.seek(0)
         try:
@@ -45,13 +42,8 @@ def extract_text_from_file(file):
                     page_text = page.extract_text()
                     if page_text:
                         text_output += page_text + "\n"
-                    tables = page.extract_tables()
-                    for table in tables:
-                        for row in table:
-                            clean_row = "\t".join(cell.strip() if cell else "" for cell in row)
-                            text_output += clean_row + "\n"
         except Exception as e:
-            text_output += f"\n[⚠️ Kunde inte läsa PDF med pdfplumber: {e}]"
+            st.warning(f"⚠️ Kunde inte läsa PDF: {e}")
 
     elif file.name.endswith(".html"):
         soup = BeautifulSoup(file.read(), "html.parser")
@@ -72,21 +64,12 @@ def fetch_html_text(url):
         soup = BeautifulSoup(response.content, "html.parser")
         for tag in soup(["script", "style", "nav", "footer", "header"]):
             tag.decompose()
-        tables = soup.find_all("table")
-        table_texts = []
-        for table in tables:
-            rows = table.find_all("tr")
-            for row in rows:
-                cells = row.find_all(["td", "th"])
-                line = "\t".join(cell.get_text(strip=True) for cell in cells)
-                if line:
-                    table_texts.append(line)
         body_text = soup.get_text(separator="\n")
         clean_lines = [line.strip() for line in body_text.splitlines() if line.strip()]
-        cleaned_text = "\n".join(clean_lines)
-        return cleaned_text + "\n\n[TABELLINNEHÅLL]\n" + "\n".join(table_texts)
-    except:
-        return None
+        return "\n".join(clean_lines)
+    except Exception as e:
+        st.error(f"❌ Fel vid hämtning av HTML: {e}")
+        return ""
 
 def is_key_figure(row):
     patterns = [
@@ -95,28 +78,7 @@ def is_key_figure(row):
     ]
     return any(re.search(p, row, re.IGNORECASE) for p in patterns)
 
-def full_rapportanalys(text: str) -> str:
-    system_prompt = (
-        "Du är en ekonomisk AI-expert. Analysera årsrapporter och extrahera så mycket relevant information som möjligt. "
-        "Fokusera på utdelning, omsättning, resultat, tillgångar, skulder, kassaflöde, vinst, viktiga händelser och eventuella risker. "
-        "Strukturera svaret i tydliga sektioner med rubriker. Behåll samma språk som texten du får."
-    )
-
-    try:
-        response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text}
-            ],
-            temperature=0.3,
-            max_tokens=1500
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"❌ Fel vid analys: {e}"
-
-# 🌐 UI
+# --- UI ---
 st.set_page_config(page_title="📊 AI Rapportanalys", layout="wide")
 st.markdown("<h1 style='color:#3EA6FF;'>📊 AI-baserad Rapportanalys</h1>", unsafe_allow_html=True)
 st.image("https://www.appypie.com/dharam_design/wp-content/uploads/2025/05/headd.svg", width=120)
@@ -124,35 +86,19 @@ st.image("https://www.appypie.com/dharam_design/wp-content/uploads/2025/05/headd
 html_link = st.text_input("🌐 Rapport-länk (HTML)")
 uploaded_file = st.file_uploader("📎 Ladda upp HTML, PDF, Excel eller bild", type=["html", "pdf", "xlsx", "xls", "png", "jpg", "jpeg"])
 
-preview = ""
-ocr_text = ""
-
-# 📥 Filhantering
+# --- Extrahera text ---
+preview, ocr_text = "", ""
 if uploaded_file:
     if uploaded_file.name.endswith((".png", ".jpg", ".jpeg")):
         ocr_text, _ = extract_text_from_image_or_pdf(uploaded_file)
-        st.text_area("📄 OCR-utläst text från bild:", ocr_text[:2000], height=200)
-
-        if st.button("🔍 Analysera bildtext med GPT"):
-            gpt_prompt = (
-                "Här är en tabell hämtad från en bild av en finansiell rapport.\n"
-                "Räkna hur många noterade bolag som listas:\n\n"
-                f"{ocr_text}"
-            )
-            answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
-            st.markdown("### 🤖 GPT-4o svar:")
-            st.write(answer)
-
-    elif uploaded_file.name.endswith((".pdf", ".html", ".xlsx", ".xls")):
+        st.text_area("📄 OCR-utläst text:", ocr_text[:2000], height=200)
+    else:
         preview = extract_text_from_file(uploaded_file)
-
 elif html_link:
-    st.info("🔍 Hämtar innehåll...")
     preview = fetch_html_text(html_link)
 else:
     preview = st.text_area("✏️ Klistra in text manuellt här:", "", height=200)
 
-# 🔍 Kombinera extraherad text från dokument eller bild
 text_to_analyze = preview or ocr_text
 
 if preview:
@@ -160,33 +106,25 @@ if preview:
 else:
     st.warning("❌ Ingen text att analysera än.")
 
-# 🔍 Fullständig rapportanalys
+# --- Fullständig analys ---
 if st.button("🔍 Fullständig rapportanalys"):
-    with st.spinner("📊 GPT analyserar hela rapporten..."):
-        if text_to_analyze:
-            full_summary = full_rapportanalys(text_to_analyze)
+    if text_to_analyze:
+        from app import full_rapportanalys  # eller flytta funktionen hit om den är lokal
+        with st.spinner("📊 GPT analyserar hela rapporten..."):
             st.markdown("### 🧾 Fullständig AI-analys:")
-            st.markdown(full_summary)
-        else:
-            st.error("Ingen text tillgänglig för analys.")
+            st.markdown(full_rapportanalys(text_to_analyze))
+    else:
+        st.error("Ingen text tillgänglig för analys.")
 
-# 🧠 Fråga och GPT-svar
+# --- GPT Fråga ---
 if "user_question" not in st.session_state:
     st.session_state.user_question = "Vilken utdelning per aktie föreslås?"
-
 st.text_input("Fråga:", key="user_question")
-user_question = st.session_state.user_question
 
 if text_to_analyze and len(text_to_analyze.strip()) > 20:
     if st.button("🔍 Analysera med GPT"):
         with st.spinner("🤖 GPT analyserar..."):
-            if html_link:
-                source_id = html_link
-            elif uploaded_file:
-                source_id = uploaded_file.name
-            else:
-                source_id = text_to_analyze[:50]
-
+            source_id = (html_link or uploaded_file.name if uploaded_file else text_to_analyze[:50]) + "-v2"
             cache_file = get_embedding_cache_name(source_id)
             embedded_chunks = load_embeddings_if_exists(cache_file)
 
@@ -194,8 +132,8 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
                 chunks = chunk_text(text_to_analyze)
                 embedded_chunks = []
                 for i, chunk in enumerate(chunks, 1):
+                    st.write(f"🔹 Chunk {i} – {len(chunk)} tecken")
                     try:
-                        st.write(f"🔹 Chunk {i} – {len(chunk)} tecken")
                         embedding = get_embedding(chunk)
                         embedded_chunks.append({"text": chunk, "embedding": embedding})
                     except Exception as e:
@@ -204,6 +142,7 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
                 save_embeddings(cache_file, embedded_chunks)
 
             context, top_chunks = search_relevant_chunks(st.session_state.user_question, embedded_chunks)
+            st.code(context[:1000], language="text")
             answer = generate_gpt_answer(st.session_state.user_question, context)
 
             st.success("✅ Svar klart!")
@@ -215,12 +154,7 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
                 for row in key_figures:
                     st.markdown(f"- {row}")
 
-            with st.expander("📚 Visa GPT-kontext"):
-                for i, chunk in enumerate(top_chunks, 1):
-                    st.markdown(f"**Chunk {i}:**\n{chunk[1]}")
-
             st.download_button("💾 Ladda ner svar (.txt)", answer, file_name="gpt_svar.txt")
-
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
