@@ -31,19 +31,43 @@ def load_embeddings_if_exists(filename):
     return None
 
 # 📥 Extrahera text
+import pdfplumber  # Se till att det finns i requirements.txt också
+
 def extract_text_from_file(file):
+    text_output = ""
+
     if file.name.endswith(".pdf"):
+        # 1. Läs text med fitz (PyMuPDF)
         doc = fitz.open(stream=file.read(), filetype="pdf")
-        return "\n".join([page.get_text() for page in doc])
+        text_output += "\n".join([page.get_text() for page in doc])
+
+        # 2. Extrahera tabeller separat med pdfplumber
+        file.seek(0)  # Viktigt: återställ filpekaren!
+        try:
+            with pdfplumber.open(file) as pdf:
+                for page in pdf.pages:
+                    tables = page.extract_tables()
+                    for table in tables:
+                        for row in table:
+                            if row and any(cell for cell in row if cell):  # Inte tom rad
+                                # Formatera raden som tabelltext
+                                clean_row = "\t".join(cell.strip() if cell else "" for cell in row)
+                                text_output += "\n" + clean_row
+        except Exception as e:
+            text_output += f"\n[⚠️ Kunde inte läsa tabeller med pdfplumber: {e}]"
+
     elif file.name.endswith(".html"):
         soup = BeautifulSoup(file.read(), "html.parser")
         for tag in soup(["script", "style", "nav", "footer", "header"]):
             tag.decompose()
-        return soup.get_text(separator="\n")
+        text_output = soup.get_text(separator="\n")
+
     elif file.name.endswith((".xlsx", ".xls")):
         df = pd.read_excel(file)
-        return df.to_string(index=False)
-    return ""
+        text_output = df.to_string(index=False)
+
+    return text_output
+
 
 @st.cache_data(show_spinner=False)
 def fetch_html_text(url):
@@ -115,7 +139,11 @@ if preview:
 else:
     st.warning("❌ Ingen text att analysera än.")
 
-user_question = st.text_input("Fråga:", "Vilken utdelning per aktie föreslås?")
+if "user_question" not in st.session_state:
+    st.session_state.user_question = "Vilken utdelning per aktie föreslås?"
+
+st.text_input("Fråga:", key="user_question")
+user_question = st.session_state.user_question
 
 if preview and len(preview.strip()) > 20:
     if st.button("🔍 Analysera"):
