@@ -7,6 +7,7 @@ import fitz  # PyMuPDF
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+from fpdf import FPDF
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
 import openai
 
