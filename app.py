@@ -13,7 +13,7 @@ from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embe
 from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
 import pdfplumber
-import openai
+import openai  # Glöm inte att importera detta!
 
 # 🌍 Ladda API-nycklar
 load_dotenv()
@@ -107,11 +107,12 @@ def chunk_text(text, chunk_size=1000, overlap=200):
 
 def is_key_figure(row):
     patterns = [
-        r"\b\d+[\.,]?\d*\s*(SEK|MSEK|kr|miljoner|tkr|USD|\$|\u20ac|%)",
+        r"\b\d+[\.,]?\d*\s*(SEK|MSEK|kr|miljoner|tkr|USD|\$|€|%)",
         r"(resultat|omsättning|utdelning|kassaflöde|kapital|intäkter|EBITDA|vinst).*?\d"
     ]
     return any(re.search(p, row, re.IGNORECASE) for p in patterns)
 
+# 🧠 GPT fullständig rapportanalysfunktion
 def full_rapportanalys(text: str) -> str:
     system_prompt = (
         "Du är en ekonomisk AI-expert. Analysera årsrapporter och extrahera så mycket relevant information som möjligt. "
@@ -152,19 +153,9 @@ if uploaded_file:
 
         if st.button("🔍 Analysera bildtext med GPT"):
             gpt_prompt = (
-                "Här är en tabell hämtad från en bild av en finansiell rapport.
-"
-                "Räkna hur många noterade bolag som listas:
-
-"
+                "Här är en tabell hämtad från en bild av en finansiell rapport.\n"
+                "Räkna hur många noterade bolag som listas:\n\n"
                 f"{ocr_text}"
-            )
-            answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
-            st.markdown("### 🤖 GPT-4o svar:")
-            st.write(answer)
-        answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
-        st.markdown("### 🤖 GPT-4o svar:")
-        st.write(answer)
             )
             answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
             st.markdown("### 🤖 GPT-4o svar:")
@@ -179,10 +170,24 @@ elif html_link:
 else:
     preview = st.text_area("✏️ Klistra in text manuellt här:", "", height=200)
 
+# Kombinera extraherad text
+text_to_analyze = preview or ocr_text
+
 if preview:
     st.text_area("📄 Förhandsvisning:", preview[:5000], height=200)
 else:
     st.warning("❌ Ingen text att analysera än.")
+
+# 🔍 Fullständig rapportanalys
+if st.button("🔍 Fullständig rapportanalys"):
+    with st.spinner("📊 GPT analyserar hela rapporten..."):
+        if text_to_analyze:
+            full_summary = full_rapportanalys(text_to_analyze)
+            st.markdown("### 🧾 Fullständig AI-analys:")
+            st.markdown(full_summary)
+            st.download_button("💾 Ladda ner fullständig analys (.txt)", full_summary, file_name="full_rapportanalys.txt")
+        else:
+            st.error("Ingen text tillgänglig för analys.")
 
 # 🧠 Fråga och GPT-svar
 if "user_question" not in st.session_state:
@@ -191,13 +196,49 @@ if "user_question" not in st.session_state:
 st.text_input("Fråga:", key="user_question")
 user_question = st.session_state.user_question
 
-# 🔍 Kombinera extraherad text från dokument eller bild
-text_to_analyze = preview or ocr_text
-
-# 🔍 Fullständig analysknapp sist:
 if text_to_analyze and len(text_to_analyze.strip()) > 20:
-    if st.button("\ud83d\udd0d Fullständig rapportanalys"):
-        with st.spinner("\ud83d\udcca GPT analyserar hela rapporten..."):
-            full_summary = full_rapportanalys(text_to_analyze)
-            st.markdown("### \ud83e\uddfe Fullständig AI-analys:")
-            st.markdown(full_summary)
+    if st.button("🔍 Analysera med GPT"):
+        with st.spinner("🤖 GPT analyserar..."):
+            source_id = html_link or (uploaded_file.name if uploaded_file else text_to_analyze[:50])
+            cache_file = get_embedding_cache_name(source_id)
+            embedded_chunks = load_embeddings_if_exists(cache_file)
+
+            if not embedded_chunks:
+                chunks = chunk_text(text_to_analyze)
+                embedded_chunks = []
+                for i, chunk in enumerate(chunks, 1):
+                    try:
+                        st.write(f"🔹 Chunk {i} – {len(chunk)} tecken")
+                        embedding = get_embedding(chunk)
+                        embedded_chunks.append({"text": chunk, "embedding": embedding})
+                    except Exception as e:
+                        st.error(f"❌ Fel vid embedding av chunk {i}: {e}")
+                        st.stop()
+                save_embeddings(cache_file, embedded_chunks)
+
+            context, top_chunks = search_relevant_chunks(user_question, embedded_chunks)
+            answer = generate_gpt_answer(user_question, context)
+
+            st.success("✅ Svar klart!")
+            st.markdown(f"### 🤖 GPT-4o svar:\n{answer}")
+
+            key_figures = [row for row in answer.split("\n") if is_key_figure(row)]
+            if key_figures:
+                st.markdown("### 📊 Möjliga nyckeltal i svaret:")
+                for row in key_figures:
+                    st.markdown(f"- {row}")
+
+            with st.expander("📚 Visa GPT-kontext"):
+                for i, chunk in enumerate(top_chunks, 1):
+                    st.markdown(f"**Chunk {i}:**\n{chunk[1]}")
+
+            st.download_button("💾 Ladda ner svar (.txt)", answer, file_name="gpt_svar.txt")
+
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            for line in answer.split("\n"):
+                pdf.multi_cell(0, 10, line)
+            st.download_button("📄 Ladda ner svar (.pdf)", pdf.output(dest="S").encode("latin1"), file_name="gpt_svar.pdf")
+else:
+    st.info("📝 Ange text, länk eller ladda upp en fil eller bild för att börja.")
