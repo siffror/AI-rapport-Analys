@@ -12,6 +12,7 @@ from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embe
 import openai
 import pdfplumber
 from utils import extract_noterade_bolag_table
+from ocr_utils import extract_text_from_image_or_pdf
 
 
 # 🌍 Ladda API-nycklar etc.
@@ -132,7 +133,23 @@ st.markdown("<h1 style='color:#3EA6FF;'>📊 AI-baserad Rapportanalys</h1>", uns
 st.image("https://www.appypie.com/dharam_design/wp-content/uploads/2025/05/headd.svg", width=120)
 
 html_link = st.text_input("🌐 Rapport-länk (HTML)")
-uploaded_file = st.file_uploader("📎 Ladda upp HTML, PDF eller Excel-fil", type=["html", "pdf", "xlsx", "xls"])
+uploaded_file = st.file_uploader(
+    "📎 Ladda upp HTML, PDF, Excel eller bild av tabell",
+    type=["html", "pdf", "xlsx", "xls", "png", "jpg", "jpeg"]
+)
+if uploaded_file and uploaded_file.name.endswith((".png", ".jpg", ".jpeg", ".pdf")):
+    ocr_text, file_path = extract_text_from_image_or_pdf(uploaded_file)
+    st.text_area("📄 OCR-utläst text:", ocr_text[:2000], height=200)
+
+    if st.button("🔍 Analysera bildtext med GPT"):
+        gpt_prompt = (
+            "Här är en tabell hämtad från en bild av en finansiell rapport.\n"
+            "Räkna hur många noterade bolag som listas:\n\n"
+            f"{ocr_text}"
+        )
+        answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
+        st.markdown("### 🤖 GPT-4o svar:")
+        st.write(answer)
 
 preview = ""
 if uploaded_file:
