@@ -3,39 +3,29 @@ import logging
 from functools import lru_cache
 from typing import List, Tuple, Dict, Any
 
-import openai
+from openai import OpenAI, OpenAIError
 from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
-from openai import OpenAIError  # Lägg till den här importen
 from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_if_exception_type
-
-@retry(
-    retry=retry_if_exception_type(OpenAIError),  # Använd direktklassen
-    wait=wait_random_exponential(min=1, max=60),
-    stop=stop_after_attempt(6)
-)
 
 # Load environment variables
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @retry(
-    retry=retry_if_exception_type(openai.error.OpenAIError),
+    retry=retry_if_exception_type(OpenAIError),
     wait=wait_random_exponential(min=1, max=60),
     stop=stop_after_attempt(6)
 )
 @lru_cache(maxsize=512)
 def get_embedding(text: str, model: str = "text-embedding-3-small") -> List[float]:
-    """
-    Hämtar en embedding-vektor för given text med cache och retry.
-    """
     if not text:
         raise ValueError("Text för embedding får inte vara tom.")
-    response = openai.embeddings.create(
+    response = client.embeddings.create(
         model=model,
         input=text
     )
@@ -46,9 +36,6 @@ def search_relevant_chunks(
     embedded_chunks: List[Dict[str, Any]],
     top_k: int = 3
 ) -> Tuple[str, List[Tuple[float, str]]]:
-    """
-    Returnerar de mest relevanta textdelarna baserat på embedding-similaritet.
-    """
     query_embed = get_embedding(question)
     similarities = []
     for item in embedded_chunks:
@@ -66,13 +53,10 @@ def generate_gpt_answer(
     temperature: float = 0.3,
     max_tokens: int = 700
 ) -> str:
-    """
-    Genererar ett svar från GPT baserat på given kontext och fråga.
-    """
     if not context.strip():
         raise ValueError("Kontext får inte vara tom vid generering.")
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": (
@@ -86,6 +70,6 @@ def generate_gpt_answer(
             max_tokens=max_tokens
         )
         return response.choices[0].message.content
-    except openai.error.OpenAIError as e:
+    except OpenAIError as e:
         logger.error(f"OpenAI API-fel: {e}")
         raise RuntimeError(f"❌ Fel vid generering av svar: {e}")
