@@ -10,7 +10,12 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_i
 
 # Load environment variables
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    http_client=None  # Undvik att något extern config skickas med
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
