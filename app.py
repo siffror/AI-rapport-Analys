@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from fpdf import FPDF
-from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
+from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding, chunk_text
 from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
 import pdfplumber
@@ -87,22 +87,6 @@ def fetch_html_text(url):
         return cleaned_text + "\n\n[TABELLINNEHÅLL]\n" + "\n".join(table_texts)
     except:
         return None
-
-def chunk_text(text, chunk_size=1000, overlap=200):
-    lines = text.split("\n")
-    chunks, current, total_length = [], [], 0
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        current.append(line)
-        total_length += len(line)
-        if total_length >= chunk_size:
-            chunks.append("\n".join(current))
-            current, total_length = [], 0
-    if current:
-        chunks.append("\n".join(current))
-    return chunks
 
 def is_key_figure(row):
     patterns = [
