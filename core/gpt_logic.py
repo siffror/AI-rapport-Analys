@@ -8,15 +8,20 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # 🧠 Generera embedding från en textsträng
-def get_embedding(text: str) -> list:
+# core/gpt_logic.py
+
+def get_embedding(text: str):
     try:
-        response = openai.embeddings.create(
+        response = client.embeddings.create(
             model="text-embedding-3-small",
             input=text
         )
         return response.data[0].embedding
     except Exception as e:
+        import traceback
+        print("❌ Full traceback:", traceback.format_exc())  # Visar hela felet i loggen
         raise RuntimeError(f"❌ Fel vid skapande av embedding: {e}")
+
 
 # 🔍 Sök relevanta chunkar baserat på frågan
 def search_relevant_chunks(question: str, embedded_chunks: list, top_k: int = 3):
