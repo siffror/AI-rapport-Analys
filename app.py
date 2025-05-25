@@ -157,10 +157,24 @@ if preview and len(preview.strip()) > 20:  # visa knapp bara om tillräckligt me
 
             embedded_chunks = load_embeddings_if_exists(cache_file)
 
-            if not embedded_chunks:
-                chunks = chunk_text(preview)
-                embedded_chunks = [{"text": chunk, "embedding": get_embedding(chunk)} for chunk in chunks]
-                save_embeddings(cache_file, embedded_chunks)
+if not embedded_chunks:
+    chunks = chunk_text(preview)
+    embedded_chunks = []
+
+    for i, chunk in enumerate(chunks, 1):
+        try:
+            st.write(f"🔹 Chunk {i} – {len(chunk)} tecken")
+            embedding = get_embedding(chunk)
+            embedded_chunks.append({"text": chunk, "embedding": embedding})
+        except Exception as e:
+            st.error(f"❌ Fel vid embedding av chunk {i}: {e}")
+            break  # Avbryt om något går fel
+
+    if embedded_chunks:
+        save_embeddings(cache_file, embedded_chunks)
+    else:
+        st.stop()
+
 
             context, top_chunks = search_relevant_chunks(user_question, embedded_chunks)
             answer = generate_gpt_answer(user_question, context)
