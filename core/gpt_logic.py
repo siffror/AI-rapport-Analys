@@ -78,3 +78,31 @@ def generate_gpt_answer(
     except OpenAIError as e:
         logger.error(f"OpenAI API-fel: {e}")
         raise RuntimeError(f"❌ Fel vid generering av svar: {e}")
+
+def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
+    """
+    Dela upp text i överlappande delar (chunks) för att möjliggöra effektiv embedding.
+    """
+    lines = text.split("\n")
+    chunks = []
+    current_chunk = []
+    total_length = 0
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        current_chunk.append(line)
+        total_length += len(line)
+        if total_length >= chunk_size:
+            chunks.append("\n".join(current_chunk))
+            # Börja ny chunk med sista biten från föregående för overlap
+            overlap_text = "\n".join(current_chunk[-(overlap // 80):])
+            current_chunk = [overlap_text] if overlap else []
+            total_length = len(overlap_text)
+
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+
+    return chunks
+
