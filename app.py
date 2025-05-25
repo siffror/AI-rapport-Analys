@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from fpdf import FPDF
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
 import openai
+import pdfplumber
+
 
 # 🌍 Ladda API-nycklar etc.
 load_dotenv()
@@ -31,30 +33,29 @@ def load_embeddings_if_exists(filename):
     return None
 
 # 📥 Extrahera text
-import pdfplumber  # Se till att det finns i requirements.txt också
 
 def extract_text_from_file(file):
     text_output = ""
 
     if file.name.endswith(".pdf"):
-        # 1. Läs text med fitz (PyMuPDF)
-        doc = fitz.open(stream=file.read(), filetype="pdf")
-        text_output += "\n".join([page.get_text() for page in doc])
-
-        # 2. Extrahera tabeller separat med pdfplumber
-        file.seek(0)  # Viktigt: återställ filpekaren!
+        file.seek(0)
         try:
             with pdfplumber.open(file) as pdf:
                 for page in pdf.pages:
+                    # 1. Läs text per sida
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_output += page_text + "\n"
+
+                    # 2. Extrahera tabeller också (extra)
                     tables = page.extract_tables()
                     for table in tables:
                         for row in table:
-                            if row and any(cell for cell in row if cell):  # Inte tom rad
-                                # Formatera raden som tabelltext
-                                clean_row = "\t".join(cell.strip() if cell else "" for cell in row)
-                                text_output += "\n" + clean_row
+                            clean_row = "\t".join(cell.strip() if cell else "" for cell in row)
+                            text_output += clean_row + "\n"
+
         except Exception as e:
-            text_output += f"\n[⚠️ Kunde inte läsa tabeller med pdfplumber: {e}]"
+            text_output += f"\n[⚠️ Kunde inte läsa PDF med pdfplumber: {e}]"
 
     elif file.name.endswith(".html"):
         soup = BeautifulSoup(file.read(), "html.parser")
@@ -67,6 +68,7 @@ def extract_text_from_file(file):
         text_output = df.to_string(index=False)
 
     return text_output
+
 
 
 @st.cache_data(show_spinner=False)
