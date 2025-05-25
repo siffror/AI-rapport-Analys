@@ -159,21 +159,24 @@ if "user_question" not in st.session_state:
 st.text_input("Fråga:", key="user_question")
 user_question = st.session_state.user_question
 
-if preview and len(preview.strip()) > 20:
-    if st.button("🔍 Analysera text"):
-        with st.spinner("🔎 GPT analyserar..."):
+# 🔍 Kombinera extraherad text från dokument eller bild
+text_to_analyze = preview or ocr_text
+
+if text_to_analyze and len(text_to_analyze.strip()) > 20:
+    if st.button("🔍 Analysera med GPT"):
+        with st.spinner("🤖 GPT analyserar..."):
             if html_link:
                 source_id = html_link
             elif uploaded_file:
                 source_id = uploaded_file.name
             else:
-                source_id = preview[:50]
+                source_id = text_to_analyze[:50]
 
             cache_file = get_embedding_cache_name(source_id)
             embedded_chunks = load_embeddings_if_exists(cache_file)
 
             if not embedded_chunks:
-                chunks = chunk_text(preview)
+                chunks = chunk_text(text_to_analyze)
                 embedded_chunks = []
                 for i, chunk in enumerate(chunks, 1):
                     try:
@@ -185,8 +188,8 @@ if preview and len(preview.strip()) > 20:
                         st.stop()
                 save_embeddings(cache_file, embedded_chunks)
 
-            context, top_chunks = search_relevant_chunks(user_question, embedded_chunks)
-            answer = generate_gpt_answer(user_question, context)
+            context, top_chunks = search_relevant_chunks(st.session_state.user_question, embedded_chunks)
+            answer = generate_gpt_answer(st.session_state.user_question, context)
 
             st.success("✅ Svar klart!")
             st.markdown(f"### 🤖 GPT-4o svar:\n{answer}")
@@ -210,4 +213,5 @@ if preview and len(preview.strip()) > 20:
                 pdf.multi_cell(0, 10, line)
             st.download_button("📄 Ladda ner svar (.pdf)", pdf.output(dest="S").encode("latin1"), file_name="gpt_svar.pdf")
 else:
-    st.info("📝 Ange text, länk eller ladda upp en fil för att börja.")
+    st.info("📝 Ange text, länk eller ladda upp en fil eller bild för att börja.")
+
