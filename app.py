@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 import streamlit as st
 from dotenv import load_dotenv
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 import hashlib
 import pickle
