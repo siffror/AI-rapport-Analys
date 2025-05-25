@@ -11,6 +11,7 @@ from fpdf import FPDF
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
 import openai
 import pdfplumber
+from utils import extract_noterade_bolag_table
 
 
 # 🌍 Ladda API-nycklar etc.
