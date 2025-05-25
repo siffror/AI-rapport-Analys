@@ -28,7 +28,6 @@ def load_embeddings_if_exists(filename):
     return None
 
 # 🛠 Lägg till projektets rotmapp i sökvägen så "core" hittas
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 load_dotenv()
 
