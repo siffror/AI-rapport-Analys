@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
+import openai
 
 # 🌍 Ladda API-nycklar etc.
 load_dotenv()
