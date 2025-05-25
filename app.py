@@ -13,12 +13,12 @@ from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embe
 from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
 import pdfplumber
-import openai  # Glöm inte att importera detta!
+import openai
 
-# 🌍 Ladda API-nycklar
+# --- Miljöinställningar ---
 load_dotenv()
 
-# 🔐 Caching och sparning av embeddings
+# --- Cache-funktioner ---
 def get_embedding_cache_name(source_id: str) -> str:
     hashed = hashlib.md5(source_id.encode("utf-8")).hexdigest()
     return os.path.join("embeddings", f"embeddings_{hashed}.pkl")
@@ -34,7 +34,7 @@ def load_embeddings_if_exists(filename):
             return pickle.load(f)
     return None
 
-# 📄 Extrahera text från olika filtyper
+# --- Textutvinning ---
 def extract_text_from_file(file):
     text_output = ""
 
@@ -89,6 +89,7 @@ def fetch_html_text(url):
     except:
         return None
 
+# --- Chunking & filtrering ---
 def chunk_text(text, chunk_size=1000, overlap=200):
     lines = text.split("\n")
     chunks, current, total_length = [], [], 0
@@ -107,12 +108,12 @@ def chunk_text(text, chunk_size=1000, overlap=200):
 
 def is_key_figure(row):
     patterns = [
-        r"\b\d+[\.,]?\d*\s*(SEK|MSEK|kr|miljoner|tkr|USD|\$|€|%)",
+        r"\b\d+[\.,]?\d*\s*(SEK|MSEK|kr|miljoner|tkr|USD|\$|\u20ac|%)",
         r"(resultat|omsättning|utdelning|kassaflöde|kapital|intäkter|EBITDA|vinst).*?\d"
     ]
     return any(re.search(p, row, re.IGNORECASE) for p in patterns)
 
-# 🧠 GPT fullständig rapportanalysfunktion
+# --- GPT: Full rapportanalys ---
 def full_rapportanalys(text: str) -> str:
     system_prompt = (
         "Du är en erfaren finansiell analytiker med djup förståelse för företagsekonomi, strategi och rapportanalys. "
@@ -123,8 +124,6 @@ def full_rapportanalys(text: str) -> str:
         "Svara på samma språk som texten du får, oavsett om det är svenska, engelska eller annat. "
         "Om användaren ställer en fråga på annat språk än rapporten – anpassa svaret till frågespråket, men citera från originaltexten där det är relevant."
     )
-
-
     try:
         response = openai.chat.completions.create(
             model="gpt-4o",
@@ -138,7 +137,7 @@ def full_rapportanalys(text: str) -> str:
         return response.choices[0].message.content
     except Exception as e:
         return f"❌ Fel vid analys: {e}"
-
+        
 # 🌐 UI
 st.set_page_config(page_title="📊 AI Rapportanalys", layout="wide")
 st.markdown("<h1 style='color:#3EA6FF;'>📊 AI-baserad Rapportanalys</h1>", unsafe_allow_html=True)
