@@ -20,6 +20,7 @@ tiktoken==0.6.0
 PyMuPDF==1.25.3
 pdfplumber==0.11.0
 fpdf
+pdfplumber==0.11.0
 
 # Finansiella data
 yfinance==0.2.33
