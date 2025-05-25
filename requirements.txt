@@ -11,7 +11,7 @@ scikit-learn==1.4.2
 openpyxl==3.1.2  # För Excel-filer
 
 # LLM + RAG
-openai==1.29.0
+openai==1.79.0
 langchain==0.1.20
 chromadb==0.4.24
 tiktoken==0.6.0
