@@ -21,3 +21,5 @@ pdfplumber
 
 # Extra
 python-dotenv  # hantera API-nycklar säkert
+pandas==2.2.3
+openpyxl==3.1.2
