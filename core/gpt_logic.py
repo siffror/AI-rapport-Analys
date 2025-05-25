@@ -6,7 +6,14 @@ from typing import List, Tuple, Dict, Any
 import openai
 from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
+from openai import OpenAIError  # Lägg till den här importen
 from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_if_exception_type
+
+@retry(
+    retry=retry_if_exception_type(OpenAIError),  # Använd direktklassen
+    wait=wait_random_exponential(min=1, max=60),
+    stop=stop_after_attempt(6)
+)
 
 # Load environment variables
 load_dotenv()
