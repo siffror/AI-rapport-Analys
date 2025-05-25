@@ -133,10 +133,63 @@ def full_rapportanalys(text: str) -> str:
     except Exception as e:
         return f"❌ Fel vid analys: {e}"
 
-# … (resten av din Streamlit UI och knappar för bildanalys och fråga)
+# 🌐 UI
+st.set_page_config(page_title="📊 AI Rapportanalys", layout="wide")
+st.markdown("<h1 style='color:#3EA6FF;'>📊 AI-baserad Rapportanalys</h1>", unsafe_allow_html=True)
+st.image("https://www.appypie.com/dharam_design/wp-content/uploads/2025/05/headd.svg", width=120)
+
+html_link = st.text_input("🌐 Rapport-länk (HTML)")
+uploaded_file = st.file_uploader("📎 Ladda upp HTML, PDF, Excel eller bild", type=["html", "pdf", "xlsx", "xls", "png", "jpg", "jpeg"])
+
+preview = ""
+ocr_text = ""
+
+# 📥 Filhantering
+if uploaded_file:
+    if uploaded_file.name.endswith((".png", ".jpg", ".jpeg")):
+        ocr_text, _ = extract_text_from_image_or_pdf(uploaded_file)
+        st.text_area("📄 OCR-utläst text från bild:", ocr_text[:2000], height=200)
+
+        if st.button("🔍 Analysera bildtext med GPT"):
+        gpt_prompt = (
+            "Här är en tabell hämtad från en bild av en finansiell rapport.
+"
+            "Räkna hur många noterade bolag som listas:
+
+"
+            f"{ocr_text}"
+        )
+            )
+            answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
+            st.markdown("### 🤖 GPT-4o svar:")
+            st.write(answer)
+
+    elif uploaded_file.name.endswith((".pdf", ".html", ".xlsx", ".xls")):
+        preview = extract_text_from_file(uploaded_file)
+
+elif html_link:
+    st.info("🔍 Hämtar innehåll...")
+    preview = fetch_html_text(html_link)
+else:
+    preview = st.text_area("✏️ Klistra in text manuellt här:", "", height=200)
+
+if preview:
+    st.text_area("📄 Förhandsvisning:", preview[:5000], height=200)
+else:
+    st.warning("❌ Ingen text att analysera än.")
+
+# 🧠 Fråga och GPT-svar
+if "user_question" not in st.session_state:
+    st.session_state.user_question = "Vilken utdelning per aktie föreslås?"
+
+st.text_input("Fråga:", key="user_question")
+user_question = st.session_state.user_question
+
+# 🔍 Kombinera extraherad text från dokument eller bild
+text_to_analyze = preview or ocr_text
 
 # 🔍 Fullständig analysknapp sist:
-if "text_to_analyze" in locals() and text_to_analyze and len(text_to_analyze.strip()) > 20:
+if text_to_analyze and len(text_to_analyze.strip()) > 20:
     if st.button("\ud83d\udd0d Fullständig rapportanalys"):
         with st.spinner("\ud83d\udcca GPT analyserar hela rapporten..."):
             full_summary = full_rapportanalys(text_to_analyze)
