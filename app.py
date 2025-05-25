@@ -14,6 +14,32 @@ from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
 import pdfplumber
 import openai
++# --- GPT system prompt (shared) ---
++system_prompt = (
++    "Du är en erfaren finansiell analytiker med djup förståelse för företagsekonomi, "
++    "strategi och rapportanalys. Du får en årsrapport eller annan finansiell text och ska "
++    "göra en komplett analys av bolaget baserat på innehållet. Analysera kreativt, identifiera "
++    "mönster, tolka siffror, och lyft fram både styrkor, svagheter, risker och möjligheter. "
++    "Om något verkar saknas eller är oklart – kommentera det. Dra slutsatser där det är möjligt, "
++    "men gissa aldrig. Ge en strukturerad analys med rubriker som: Översikt, Finansiell Sammanfattning, "
++    "Väsentliga Händelser, Risker, Kommentarer. Svara på samma språk som texten du får, oavsett om det "
++    "är svenska, engelska eller annat. Om användaren ställer en fråga på annat språk än rapporten – "
++    "anpassa svaret till frågespråket, men citera från originaltexten där det är relevant."
++)
+
+@@ def full_rapportanalys(text: str) -> str:
+-    system_prompt = (
+-        "Du är en erfaren finansiell analytiker med djup förståelse för företagsekonomi, strategi och rapportanalys. "
+-        … (rest of prompt) …
+-    )
+     try:
+         response = openai.chat.completions.create(
+             model="gpt-4o",
+             messages=[
+-                {"role": "system", "content": system_prompt},
++                {"role": "system", "content": system_prompt},
+                 {"role": "user", "content": text}
+             ],
 
 # --- Miljöinställningar ---
 load_dotenv()
