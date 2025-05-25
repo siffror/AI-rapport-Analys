@@ -24,3 +24,9 @@ pdfplumber==0.11.0
 
 # Finansiella data
 yfinance==0.2.33
+
+easyocr==1.7.1
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
+opencv-python==4.9.0.80
