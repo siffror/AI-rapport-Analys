@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from fpdf import FPDF
-from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding, chunk_text
+from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding, chunk_text, full_rapportanalys
 from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
 import pdfplumber
@@ -109,8 +109,7 @@ else:
 # --- Fullständig analys ---
 if st.button("🔍 Fullständig rapportanalys"):
     if text_to_analyze:
-        from app import full_rapportanalys  # eller flytta funktionen hit om den är lokal
-        with st.spinner("📊 GPT analyserar hela rapporten..."):
+                with st.spinner("📊 GPT analyserar hela rapporten..."):
             st.markdown("### 🧾 Fullständig AI-analys:")
             st.markdown(full_rapportanalys(text_to_analyze))
     else:
