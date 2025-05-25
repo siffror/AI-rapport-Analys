@@ -2,6 +2,7 @@ import os
 import pickle
 import hashlib
 import requests
+import re
 from bs4 import BeautifulSoup
 import fitz  # PyMuPDF
 import pandas as pd
@@ -9,16 +10,14 @@ import streamlit as st
 from dotenv import load_dotenv
 from fpdf import FPDF
 from core.gpt_logic import search_relevant_chunks, generate_gpt_answer, get_embedding
-import openai
-import pdfplumber
 from utils import extract_noterade_bolag_table
 from ocr_utils import extract_text_from_image_or_pdf
+import pdfplumber
 
-
-# 🌍 Ladda API-nycklar etc.
+# 🌍 Ladda API-nycklar
 load_dotenv()
 
-# 🔐 OpenAI används i core/gpt_logic.py
+# 🔐 Caching och sparning av embeddings
 def get_embedding_cache_name(source_id: str) -> str:
     hashed = hashlib.md5(source_id.encode("utf-8")).hexdigest()
     return os.path.join("embeddings", f"embeddings_{hashed}.pkl")
@@ -34,14 +33,7 @@ def load_embeddings_if_exists(filename):
             return pickle.load(f)
     return None
 
-# 📥 Extrahera text
-def format_table_for_gpt(raw_text: str, header_keywords=("Noterade Bolag", "ABB", "Atlas Copco")) -> str:
-    lines = raw_text.splitlines()
-    table_lines = [line for line in lines if any(keyword in line for keyword in header_keywords)]
-    formatted = "Här är en tabell över noterade bolag:\n\n"
-    formatted += "\n".join(table_lines)
-    return formatted
-
+# 📄 Extrahera text från olika filtyper
 def extract_text_from_file(file):
     text_output = ""
 
@@ -50,18 +42,14 @@ def extract_text_from_file(file):
         try:
             with pdfplumber.open(file) as pdf:
                 for page in pdf.pages:
-                    # 1. Läs text per sida
                     page_text = page.extract_text()
                     if page_text:
                         text_output += page_text + "\n"
-
-                    # 2. Extrahera tabeller också (extra)
                     tables = page.extract_tables()
                     for table in tables:
                         for row in table:
                             clean_row = "\t".join(cell.strip() if cell else "" for cell in row)
                             text_output += clean_row + "\n"
-
         except Exception as e:
             text_output += f"\n[⚠️ Kunde inte läsa PDF med pdfplumber: {e}]"
 
@@ -76,8 +64,6 @@ def extract_text_from_file(file):
         text_output = df.to_string(index=False)
 
     return text_output
-
-
 
 @st.cache_data(show_spinner=False)
 def fetch_html_text(url):
@@ -118,8 +104,6 @@ def chunk_text(text, chunk_size=1000, overlap=200):
         chunks.append("\n".join(current))
     return chunks
 
-# 🔍 Mönster för nyckeltal
-import re
 def is_key_figure(row):
     patterns = [
         r"\b\d+[\.,]?\d*\s*(SEK|MSEK|kr|miljoner|tkr|USD|\$|€|%)",
@@ -133,27 +117,30 @@ st.markdown("<h1 style='color:#3EA6FF;'>📊 AI-baserad Rapportanalys</h1>", uns
 st.image("https://www.appypie.com/dharam_design/wp-content/uploads/2025/05/headd.svg", width=120)
 
 html_link = st.text_input("🌐 Rapport-länk (HTML)")
-uploaded_file = st.file_uploader(
-    "📎 Ladda upp HTML, PDF, Excel eller bild av tabell",
-    type=["html", "pdf", "xlsx", "xls", "png", "jpg", "jpeg"]
-)
-if uploaded_file and uploaded_file.name.endswith((".png", ".jpg", ".jpeg", ".pdf")):
-    ocr_text, file_path = extract_text_from_image_or_pdf(uploaded_file)
-    st.text_area("📄 OCR-utläst text:", ocr_text[:2000], height=200)
-
-    if st.button("🔍 Analysera bildtext med GPT"):
-        gpt_prompt = (
-            "Här är en tabell hämtad från en bild av en finansiell rapport.\n"
-            "Räkna hur många noterade bolag som listas:\n\n"
-            f"{ocr_text}"
-        )
-        answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
-        st.markdown("### 🤖 GPT-4o svar:")
-        st.write(answer)
+uploaded_file = st.file_uploader("📎 Ladda upp HTML, PDF, Excel eller bild", type=["html", "pdf", "xlsx", "xls", "png", "jpg", "jpeg"])
 
 preview = ""
+ocr_text = ""
+
+# 📥 Filhantering
 if uploaded_file:
-    preview = extract_text_from_file(uploaded_file)
+    if uploaded_file.name.endswith((".png", ".jpg", ".jpeg")):
+        ocr_text, _ = extract_text_from_image_or_pdf(uploaded_file)
+        st.text_area("📄 OCR-utläst text från bild:", ocr_text[:2000], height=200)
+
+        if st.button("🔍 Analysera bildtext med GPT"):
+            gpt_prompt = (
+                "Här är en tabell hämtad från en bild av en finansiell rapport.\n"
+                "Räkna hur många noterade bolag som listas:\n\n"
+                f"{ocr_text}"
+            )
+            answer = generate_gpt_answer("Hur många noterade bolag listas?", gpt_prompt)
+            st.markdown("### 🤖 GPT-4o svar:")
+            st.write(answer)
+
+    elif uploaded_file.name.endswith((".pdf", ".html", ".xlsx", ".xls")):
+        preview = extract_text_from_file(uploaded_file)
+
 elif html_link:
     st.info("🔍 Hämtar innehåll...")
     preview = fetch_html_text(html_link)
@@ -165,6 +152,7 @@ if preview:
 else:
     st.warning("❌ Ingen text att analysera än.")
 
+# 🧠 Fråga och GPT-svar
 if "user_question" not in st.session_state:
     st.session_state.user_question = "Vilken utdelning per aktie föreslås?"
 
@@ -172,9 +160,15 @@ st.text_input("Fråga:", key="user_question")
 user_question = st.session_state.user_question
 
 if preview and len(preview.strip()) > 20:
-    if st.button("🔍 Analysera"):
+    if st.button("🔍 Analysera text"):
         with st.spinner("🔎 GPT analyserar..."):
-            source_id = html_link or uploaded_file.name if uploaded_file else preview[:50]
+            if html_link:
+                source_id = html_link
+            elif uploaded_file:
+                source_id = uploaded_file.name
+            else:
+                source_id = preview[:50]
+
             cache_file = get_embedding_cache_name(source_id)
             embedded_chunks = load_embeddings_if_exists(cache_file)
 
@@ -209,7 +203,6 @@ if preview and len(preview.strip()) > 20:
 
             st.download_button("💾 Ladda ner svar (.txt)", answer, file_name="gpt_svar.txt")
 
-            from fpdf import FPDF
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
@@ -217,4 +210,4 @@ if preview and len(preview.strip()) > 20:
                 pdf.multi_cell(0, 10, line)
             st.download_button("📄 Ladda ner svar (.pdf)", pdf.output(dest="S").encode("latin1"), file_name="gpt_svar.pdf")
 else:
-    st.warning("📝 Vänligen ange text, länk eller ladda upp en fil för att börja.")
+    st.info("📝 Ange text, länk eller ladda upp en fil för att börja.")
