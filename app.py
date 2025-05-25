@@ -33,6 +33,12 @@ def load_embeddings_if_exists(filename):
     return None
 
 # 📥 Extrahera text
+def format_table_for_gpt(raw_text: str, header_keywords=("Noterade Bolag", "ABB", "Atlas Copco")) -> str:
+    lines = raw_text.splitlines()
+    table_lines = [line for line in lines if any(keyword in line for keyword in header_keywords)]
+    formatted = "Här är en tabell över noterade bolag:\n\n"
+    formatted += "\n".join(table_lines)
+    return formatted
 
 def extract_text_from_file(file):
     text_output = ""
