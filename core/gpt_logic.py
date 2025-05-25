@@ -96,7 +96,6 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
         total_length += len(line)
         if total_length >= chunk_size:
             chunks.append("\n".join(current_chunk))
-            # Börja ny chunk med sista biten från föregående för overlap
             overlap_text = "\n".join(current_chunk[-(overlap // 80):])
             current_chunk = [overlap_text] if overlap else []
             total_length = len(overlap_text)
@@ -106,3 +105,23 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
 
     return chunks
 
+def full_rapportanalys(text: str) -> str:
+    system_prompt = (
+        "Du är en ekonomisk AI-expert. Analysera årsrapporter och extrahera så mycket relevant information som möjligt. "
+        "Fokusera på utdelning, omsättning, resultat, tillgångar, skulder, kassaflöde, vinst, viktiga händelser och eventuella risker. "
+        "Strukturera svaret i tydliga sektioner med rubriker. Behåll samma språk som texten du får."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.3,
+            max_tokens=1500
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"❌ Fel vid analys: {e}"
