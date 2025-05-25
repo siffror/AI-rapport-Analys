@@ -115,10 +115,15 @@ def is_key_figure(row):
 # 🧠 GPT fullständig rapportanalysfunktion
 def full_rapportanalys(text: str) -> str:
     system_prompt = (
-        "Du är en ekonomisk AI-expert. Analysera årsrapporter och extrahera så mycket relevant information som möjligt. "
-        "Fokusera på utdelning, omsättning, resultat, tillgångar, skulder, kassaflöde, vinst, viktiga händelser och eventuella risker. "
-        "Strukturera svaret i tydliga sektioner med rubriker. Behåll samma språk som texten du får."
+        "Du är en erfaren finansiell analytiker med djup förståelse för företagsekonomi, strategi och rapportanalys. "
+        "Du får en årsrapport eller annan finansiell text och ska göra en komplett analys av bolaget baserat på innehållet. "
+        "Analysera kreativt, identifiera mönster, tolka siffror, och lyft fram både styrkor, svagheter, risker och möjligheter. "
+        "Om något verkar saknas eller är oklart – kommentera det. Dra slutsatser där det är möjligt, men gissa aldrig. "
+        "Ge en strukturerad analys med rubriker som: Översikt, Finansiell Sammanfattning, Väsentliga Händelser, Risker, Kommentarer. "
+        "Svara på samma språk som texten du får, oavsett om det är svenska, engelska eller annat. "
+        "Om användaren ställer en fråga på annat språk än rapporten – anpassa svaret till frågespråket, men citera från originaltexten där det är relevant."
     )
+
 
     try:
         response = openai.chat.completions.create(
@@ -216,8 +221,23 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
                         st.stop()
                 save_embeddings(cache_file, embedded_chunks)
 
-            context, top_chunks = search_relevant_chunks(user_question, embedded_chunks)
-            answer = generate_gpt_answer(user_question, context)
+            context = "\n---\n".join(chunk["text"] for chunk in embedded_chunks)
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"{context}\n\nFråga: {user_question}"}
+            ]
+
+            response = openai.chat.completions.create(
+                model="gpt-4o",
+                messages=messages,
+                temperature=0.3,
+                max_tokens=1500
+            )
+
+            answer = response.choices[0].message.content
+
+            
 
             st.success("✅ Svar klart!")
             st.markdown("### 🤖 GPT-4o svar:")
@@ -228,6 +248,8 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
                 row.strip() for row in answer.split("\n")
                 if is_key_figure(row) and len(row.strip()) > 10
             ))
+            if st.checkbox("🔍 Visa hela GPT-kontext (debug)"):
+                st.text_area("🧠 GPT får denna text:", context[:10000], height=300)
 
             if "ingen specifik information om föreslagen utdelning" in answer.lower():
                 st.warning("⚠️ GPT hittade ingen specifik information om föreslagen utdelning. Du kan behöva kontrollera årsrapportens senare delar eller separata utdelningsbesked.")
@@ -236,9 +258,7 @@ if text_to_analyze and len(text_to_analyze.strip()) > 20:
                 for row in key_figures:
                     st.markdown(f"- {row}")
 
-            with st.expander("📚 Visa GPT-kontext"):
-                for i, chunk in enumerate(top_chunks[:3], 1):  # Max 3 chunks
-                    st.markdown(f"**Chunk {i}:**\n{chunk[1][:1000]}...")
+        
 
             st.download_button("💾 Ladda ner svar (.txt)", answer, file_name="gpt_svar.txt")
 
