@@ -109,7 +109,7 @@ else:
 # --- Fullständig analys ---
 if st.button("🔍 Fullständig rapportanalys"):
     if text_to_analyze:
-                with st.spinner("📊 GPT analyserar hela rapporten..."):
+        with st.spinner("📊 GPT analyserar hela rapporten..."):
             st.markdown("### 🧾 Fullständig AI-analys:")
             st.markdown(full_rapportanalys(text_to_analyze))
     else:
