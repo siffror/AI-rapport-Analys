@@ -4,18 +4,16 @@ from functools import lru_cache
 from typing import List, Tuple, Dict, Any
 
 from openai import OpenAI, OpenAIError
-from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
 from tenacity import retry, wait_random_exponential, stop_after_attempt, retry_if_exception_type
 
 # Load environment variables
-load_dotenv()
-from openai import OpenAI
+import streamlit as st
 
 client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    http_client=None  # Undvik att något extern config skickas med
+    api_key=st.secrets["OPENAI_API_KEY"]
 )
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
