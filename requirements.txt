@@ -1,3 +1,5 @@
+opencv-python-headless==4.9.0.80
+
 # UI och gränssnitt
 streamlit==1.35.0
 python-dotenv==1.0.1
@@ -30,4 +32,3 @@ torch==2.2.2
 torchvision==0.17.2
 torchaudio==2.2.2
 opencv-python==4.9.0.80
-opencv-python-headless==4.9.0.80
