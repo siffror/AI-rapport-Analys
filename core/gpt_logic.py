@@ -37,7 +37,7 @@ def get_embedding(text: str, model: str = "text-embedding-3-small") -> List[floa
 def search_relevant_chunks(
     question: str,
     embedded_chunks: List[Dict[str, Any]],
-    top_k: int = 3
+    top_k: int = 7
 ) -> Tuple[str, List[Tuple[float, str]]]:
     query_embed = get_embedding(question)
     similarities = []
