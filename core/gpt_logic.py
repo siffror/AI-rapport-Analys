@@ -40,10 +40,20 @@ def search_relevant_chunks(
     top_k: int = 7
 ) -> Tuple[str, List[Tuple[float, str]]]:
     query_embed = get_embedding(question)
+    question_words = set(question.lower().split())
     similarities = []
+
     for item in embedded_chunks:
+        text = item.get("text", "")
+        text_lower = text.lower()
         score = cosine_similarity([query_embed], [item["embedding"]])[0][0]
-        similarities.append((score, item.get("text", "")))
+
+        # Fuzzy bonus: ge lite poäng för ord som matchar frågan
+        fuzzy_bonus = sum(1 for word in question_words if word in text_lower) * 0.005
+        score += fuzzy_bonus
+
+        similarities.append((score, text))
+
     top_chunks = sorted(similarities, key=lambda x: x[0], reverse=True)[:top_k]
     context = "\n---\n".join([chunk for _, chunk in top_chunks])
     logger.info(f"Valde top {top_k} chunks för frågan.")
